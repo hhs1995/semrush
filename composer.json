@@ -4,6 +4,7 @@
         "symfony/yaml": "^2.6",
         "mnapoli/php-di": "^4.4",
         "symfony/class-loader": "^2.6",
-        "symfony/http-foundation": "^2.6"
+        "symfony/http-foundation": "^2.6",
+        "pda/pheanstalk": "^3.0"
     }
 }
