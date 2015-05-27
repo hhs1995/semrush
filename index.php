@@ -25,6 +25,6 @@ include_once "di.php";
 
 $api = new App\Classes\UserAPI();
 
-$api->sendPushNotification([2,3,1],'Hello');
+$api->sendPushNotification([2,3,1],'Привет, %name%, твой ID: %id%');
 
 print_r($api->getLastRecipients());
