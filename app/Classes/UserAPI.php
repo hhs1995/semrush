@@ -6,6 +6,9 @@ use Core\App;
 class UserAPI
 {
 
+    const COUNTER_CACHE_KEY = 'push-notification-counter';
+    const NOTIFICATIONS_CACHE_KEY = 'notifications';
+
     private $lastRecipients = [];
 
     /**
@@ -40,12 +43,19 @@ class UserAPI
      * @param integer $limit
      * @return \App\Entity\User[]|null
      */
-    protected function findUsersByIds(array $ids, $limit = 100)
+    public function findUsersByIds(array $ids, $limit = null, $hydrationMode = null)
     {
 
-        return App::getDI()->get('entityManager')
+        $query = App::getDI()->get('entityManager')
             ->getRepository('Entity:User')
-            ->findById($ids, null, $limit);
+            ->createQueryBuilder('e')
+            ->andWhere('e.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->setMaxResults($limit)
+            ->getQuery();
+
+        return $query->setDQL(str_replace('WHERE', 'INDEX BY e.id WHERE', $query->getDQL()))
+            ->getResult($hydrationMode);
     }
 
     /**
@@ -56,12 +66,12 @@ class UserAPI
      * @param integer $requestLimit
      * @return bool
      */
-    protected function accessCounter($sessionName, $timeLimit = 1, $requestLimit = 3)
+    protected function accessCounter($timeLimit = 1, $requestLimit = 3)
     {
 
         $cacheDriver = App::getDI()->get('cache');
 
-        $counter = unserialize($cacheDriver->fetch($sessionName));
+        $counter = unserialize($cacheDriver->fetch(self::COUNTER_CACHE_KEY));
 
         $currentTimestamp = microtime(true);
 
@@ -81,23 +91,55 @@ class UserAPI
             return false;
         }
 
-        $cacheDriver->save($sessionName, serialize($counter));
+        $cacheDriver->save(self::COUNTER_CACHE_KEY, serialize($counter));
 
         return true;
     }
 
 
-    /**
-     * Метод отправки данных в некую API
-     *
-     * @param \App\Entity\User[] $users
-     * @param string $text
-     * @return bool
-     */
-    protected function sendToApi(array $users, $text)
+    public function addActiveNotifications(array $dataNotifications)
     {
 
-        return true;
+        $cacheDriver = App::getDI()->get('cache');
+
+        $notifications = unserialize($cacheDriver->fetch(self::NOTIFICATIONS_CACHE_KEY));
+
+        $notifications = $notifications ? $notifications : [];
+
+        $notifications[] = $dataNotifications;
+
+        return $cacheDriver->save(self::NOTIFICATIONS_CACHE_KEY, serialize($notifications));
+    }
+
+    public function getActiveNotifications()
+    {
+
+        $cacheDriver = App::getDI()->get('cache');
+
+        $notifications = unserialize($cacheDriver->fetch(self::NOTIFICATIONS_CACHE_KEY));
+
+        return $notifications;
+    }
+
+    public function clearActiveNotifications()
+    {
+
+        $cacheDriver = App::getDI()->get('cache');
+
+        return $cacheDriver->delete(self::NOTIFICATIONS_CACHE_KEY);
+    }
+
+
+    public function prepareNotificationText(array $replace, $text)
+    {
+
+        return preg_replace_callback(
+            '/(%)([a-zA-Z]{1,})(%)/',
+            function ($matches) use ($replace) {
+                return isset($replace[$matches[2]]) ? $replace[$matches[2]] : '';
+            },
+            $text
+        );
     }
 
 
@@ -111,15 +153,18 @@ class UserAPI
     public function sendPushNotification(array $ids, $text)
     {
 
-        if ($this->accessCounter('push-notification-counter') && $users = $this->findUsersByIds($ids)) {
+        if (100 < count($ids)) {
 
-            $this->sendToApi($users, $text);
+            throw new \RuntimeException('Too much ids.');
+        } elseif (!$this->accessCounter()) {
 
-            $this->setLastRecipients($users);
+            throw new \RuntimeException('Too much requests.');
+        } else {
 
-            return true;
+            return $this->addActiveNotifications([
+                'ids' => $ids,
+                'text' => $text
+            ]);
         }
-
-        return false;
     }
 }
