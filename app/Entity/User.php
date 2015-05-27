@@ -36,7 +36,7 @@ class User
     }
  
     /**
-     * Геттер для названия роли.
+     * Геттер для имени пользователя.
      *
      * @return string The name.
      */
@@ -44,9 +44,9 @@ class User
     {
         return $this->name;
     }
- 
+
     /**
-     * Сеттер для названия роли.
+     * Сеттер для имени пользователя.
      *
      * @param string $value The name.
      */
@@ -54,4 +54,5 @@ class User
     {
         $this->name = $value;
     }
+    
 }
