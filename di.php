@@ -15,14 +15,16 @@ $builder->setDefinitionCache($cache);
 
 $container = $builder->build();
 
+$params = Core\App::getParams();
+
 $container->set('entityManager',
-    \DI\factory(function () use ($cache) {
+    \DI\factory(function () use ($cache, $params) {
 
         $paths = [
             __DIR__ . "/app/Entity"
         ];
 
-        $dbParams = require(__DIR__ . '/config/db.php');
+        $dbParams = $params['db'];
 
         $config = Setup::createConfiguration(false, null, $cache);
 
@@ -58,11 +60,13 @@ $container->set('session',
 );
 
 $container->set('cache',
-    \DI\factory(function () {
+    \DI\factory(function () use ($cache, $params) {
+
+        $memcachedParams = $params['memcached'];
 
         $memcached = new \Memcached();
 
-        $memcached->addServer('127.0.0.1',11211);
+        $memcached->addServer($memcachedParams['host'], $memcachedParams['port']);
 
         $cache = new \Doctrine\Common\Cache\MemcachedCache();
 
