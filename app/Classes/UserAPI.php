@@ -9,33 +9,6 @@ class UserAPI
     const COUNTER_CACHE_KEY = 'push-notification-counter';
     const NOTIFICATIONS_CACHE_KEY = 'notifications';
 
-    private $lastRecipients = [];
-
-    /**
-     * Метод для записи последних получателей уведомления
-     *
-     * @param \App\Entity\User[] $users
-     * @return \App\Classes\UserAPI
-     */
-    private function setLastRecipients(array $users)
-    {
-
-        $this->lastRecipients = $users;
-
-        return $this;
-    }
-
-    /**
-     * Поличение списка последних людей, которым было отправдело уведомление
-     *
-     * @return \App\Entity\User[]
-     */
-    public function getLastRecipients()
-    {
-
-        return $this->lastRecipients;
-    }
-
     /**
      * Поиск пользователей по массиву идентификаторов
      *
@@ -97,7 +70,13 @@ class UserAPI
     }
 
 
-    public function addActiveNotifications(array $dataNotifications)
+    /**
+     * Добавление сообщений в список на отправку
+     *
+     * @param array $newNotifications
+     * @return bool
+     */
+    public function addActiveNotifications(array $newNotifications)
     {
 
         $cacheDriver = App::getDI()->get('cache');
@@ -106,11 +85,17 @@ class UserAPI
 
         $notifications = $notifications ? $notifications : [];
 
-        $notifications[] = $dataNotifications;
+        $notifications[] = $newNotifications;
 
         return $cacheDriver->save(self::NOTIFICATIONS_CACHE_KEY, serialize($notifications));
     }
 
+
+    /**
+     * Получение списка сообщений на отправку
+     *
+     * @return array $notifications
+     */
     public function getActiveNotifications()
     {
 
@@ -121,6 +106,12 @@ class UserAPI
         return $notifications;
     }
 
+
+    /**
+     * Удаления списка сообщений на отправку
+     *
+     * @return bool
+     */
     public function clearActiveNotifications()
     {
 
@@ -130,6 +121,13 @@ class UserAPI
     }
 
 
+    /**
+     * Метод подготовки текста сообщения к отправке (замена спец. слов в шаблоне реальными значениями)
+     *
+     * @param array $replace
+     * @param string $text
+     * @return string $text
+     */
     public function prepareNotificationText(array $replace, $text)
     {
 
@@ -140,6 +138,28 @@ class UserAPI
             },
             $text
         );
+    }
+
+
+    /**
+     * Метод подготовки сообщения и отправки его в очередь
+     *
+     * @param integer $ids
+     * @param array $userData
+     * @param string $text
+     * @return integer $jobId
+     */
+    public function pushNotification($id, array $userData, $text)
+    {
+
+        $data = [
+            'id' => $id,
+            'text' => $this->prepareNotificationText($userData, $text)
+        ];
+
+        $QueueManager = new QueueManager;
+
+        return $QueueManager->push('notifications:push', json_encode($data));
     }
 
 
