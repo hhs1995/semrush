@@ -20,3 +20,19 @@
 
 
 Класс UserAPI расположен: /path/to/app/Classes/UserAPI.php
+
+
+Работа с консолью:
+
+php console.php команда параметры
+
+Запуск воркера на отправку сообщений в некую апишку ( можно запускать сколько угодно воркеров ):
+
+php console.php notifications:worker:push
+
+Запуск воркера для обработки групп сообщений
+
+php console.php notifications:worker:combine 3
+
+3 (сек) - это промежуток времени, за который проверять сообщения
+
